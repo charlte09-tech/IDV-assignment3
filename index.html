@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Interactive One-Country Map (Hover to highlight)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f7fb;margin:0 }
+    .card { background:white;border-radius:12px;box-shadow:0 6px 24px rgba(20,30,50,0.08);padding:24px;max-width:720px;width:90%; }
+    h1 { font-size:18px;margin:0 0 12px }
+    .map-wrap{ position:relative; width:100%; height:480px; display:flex; align-items:center; justify-content:center }
+    svg{ width:80%; height:auto; max-height:420px; }
+    .country { fill:#cde7ff; stroke:#4a90e2; stroke-width:1.6; cursor:pointer; transition:fill .18s ease, transform .12s ease; }
+    .country:hover{ fill:#4a90e2; transform:scale(1.02); }
+    .tooltip{ position:absolute; pointer-events:none; background:rgba(20,20,30,0.95); color:white; padding:6px 10px; border-radius:6px; font-size:13px; transform:translate(-50%,-140%); white-space:nowrap; box-shadow:0 6px 18px rgba(10,10,20,0.25); display:none }
+    .legend { margin-top:12px; font-size:13px; color:#334155 }
+    .sr-only{ position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0 }
+  </style>
+</head>
+<body>
+  <div class="card" role="application" aria-labelledby="title">
+    <h1 id="title">Interactive country map — hover to highlight and show name</h1>
+    <div class="map-wrap" id="mapWrap">
+      <!-- Tooltip that follows the cursor -->
+      <div id="tooltip" class="tooltip" aria-hidden="true"></div>
+
+      <!-- Simple illustrative SVG "country". Replace the <path> with a real country outline SVG if you want a real map. -->
+      <svg viewBox="0 0 600 400" role="img" aria-labelledby="mapTitle mapDesc">
+        <title id="mapTitle">Single country map</title>
+        <desc id="mapDesc">A single country silhouette that changes colour and shows its name on hover.</desc>
+
+        <!-- Background grid for subtle context (non-interactive) -->
+        <g aria-hidden="true">
+          <defs>
+            <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r="0.6" fill="#e6eefb"></circle>
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="600" height="400" fill="url(#dots)" opacity="0.9"></rect>
+        </g>
+
+        <!-- Example "country" silhouette. This is a stylised shape (not geographic-accurate). -->
+        <g>
+          <path id="country" class="country" d="M210 60c24-12 58-8 86 10 28 18 48 46 66 82 10 21 30 38 26 64-4 26-22 42-44 54-22 12-56 22-88 22s-66-11-88-28c-22-17-38-36-42-66-4-30 10-60 30-86 20-26 40-40 54-52z"/>
+          <title id="countryTitle">Fantasia</title>
+        </g>
+      </svg>
+    </div>
+
+    <div class="legend">Tip: hover or keyboard-focus the country to highlight it and see its name.</div>
+  </div>
+
+  <script>
+    (function(){
+      const countryEl = document.getElementById('country');
+      const tooltip = document.getElementById('tooltip');
+      const mapWrap = document.getElementById('mapWrap');
+      const countryName = 'Fantasia'; // change this to a real country name if you replace the path
+
+      // Show tooltip and highlight on pointer enter
+      function showTooltip(clientX, clientY){
+        tooltip.textContent = countryName;
+        tooltip.style.display = 'block';
+        tooltip.setAttribute('aria-hidden','false');
+        positionTooltip(clientX, clientY);
+      }
+
+      function hideTooltip(){
+        tooltip.style.display = 'none';
+        tooltip.setAttribute('aria-hidden','true');
+      }
+
+      function positionTooltip(x,y){
+        // compute position relative to mapWrap
+        const rect = mapWrap.getBoundingClientRect();
+        const left = x - rect.left;
+        const top = y - rect.top;
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+      }
+
+      // Pointer events
+      countryEl.addEventListener('pointerenter', (e)=>{
+        showTooltip(e.clientX, e.clientY);
+        countryEl.setAttribute('aria-pressed', 'true');
+      });
+
+      countryEl.addEventListener('pointermove', (e)=>{
+        positionTooltip(e.clientX, e.clientY);
+      });
+
+      countryEl.addEventListener('pointerleave', ()=>{
+        hideTooltip();
+        countryEl.removeAttribute('aria-pressed');
+      });
+
+      // Keyboard accessibility: focus/blur
+      countryEl.setAttribute('tabindex', '0');
+      countryEl.setAttribute('role', 'button');
+      countryEl.addEventListener('focus', (e)=>{
+        // place tooltip near the center of country bounding box when focused
+        const bbox = countryEl.getBoundingClientRect();
+        showTooltip(bbox.left + bbox.width/2, bbox.top + bbox.height/2);
+      });
+      countryEl.addEventListener('blur', hideTooltip);
+
+      // Make it possible to change the country name programmatically
+      window.setCountryName = function(name){
+        tooltip.textContent = name;
+      };
+
+      // Mobile: tap toggles tooltip briefly
+      countryEl.addEventListener('click', (e)=>{
+        // show for 1800ms
+        showTooltip(e.clientX, e.clientY);
+        setTimeout(hideTooltip, 1800);
+      });
+
+      // small enhancement: if user moves pointer quickly outside, hide after a short delay
+      let leaveTimeout;
+      countryEl.addEventListener('pointerleave', ()=>{
+        leaveTimeout = setTimeout(hideTooltip, 80);
+      });
+      countryEl.addEventListener('pointerenter', ()=>{ clearTimeout(leaveTimeout); });
+    })();
+  </script>
+</body>
+</html>
