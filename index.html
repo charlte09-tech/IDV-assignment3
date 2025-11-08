@@ -3,23 +3,35 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Singapore — Interactive SVG Map + Bar Chart</title>
+<title>Singapore — Interactive SVG Map + Bar Chart + Venn</title>
 <style>
   :root{
-    --bg:#0b1220;
-    --card:#111827;
-    --text:#e5e7eb;
-    --base:#93a3b8;         /* default fill */
-    --hover:#22c55e;        /* hover fill */
-    --stroke:#334155;
+    --bg:#0b1220; --card:#111827; --text:#e5e7eb;
+    --base:#93a3b8; --hover:#22c55e; --stroke:#334155;
+    --muted:#94a3b8; --accent:#38bdf8; --bar:#60a5fa; --bar-hover:#f59e0b; --grid:#1f2937;
 
-    /* chart palette (reusing theme) */
-    --muted:#94a3b8;
-    --accent:#38bdf8;
-    --bar:#60a5fa;
-    --bar-hover:#f59e0b;
-    --grid:#1f2937;
+    /* Venn colors */
+    --vd-a:#60a5fa; /* blue */
+    --vd-b:#f59e0b; /* amber */
+    --vd-c:#22c55e; /* green */
+
+    /* ===== Function Graph #2 (fg2-*) ===== */
+    .fg2-wrap{padding:8px;border-radius:12px;background:#0b1220;border:1px solid #1f2532;position:relative}
+    .fg2-controls{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+    .fg2-controls label{font-size:12px;color:var(--muted)}
+    .fg2-controls input{width:140px}
+    .fg2-svg{width:100%;height:auto;display:block}
+    .fg2-grid line{stroke:var(--grid);stroke-width:1}
+    .fg2-axis text{fill:var(--muted);font-size:12px}
+    .fg2-curve0{fill:none;stroke:#f59e0b;stroke-width:3}
+    .fg2-curve1{fill:none;stroke:#14b8a6;stroke-width:3}
+    .fg2-window{fill:#9ca3af;opacity:.45}
+    .fg2-cut{stroke:#d1d5db;stroke-dasharray:6 6;stroke-width:2}
+    .fg2-legend{display:flex;gap:16px;align-items:center;color:var(--muted);font-size:12px;margin-top:8px}
+    .fg2-line{display:inline-block;width:24px;height:0;border-top:3px solid currentColor}
+
   }
+
   html,body{height:100%}
   body{
     margin:0; background:var(--bg); color:var(--text);
@@ -27,6 +39,7 @@
     display:flex; align-items:flex-start; justify-content:center; padding:18px;
     gap:18px; flex-wrap:wrap;
   }
+  
   .card{
     width:min(1200px,95vw);
     background:var(--card); border:1px solid #1f2937; border-radius:16px;
@@ -45,7 +58,7 @@
     transition:opacity .12s ease, transform .12s ease;
     white-space:nowrap;
   }
-  .tip.show{opacity:1; transform:translate(-50%,-120%) scale(1);}
+  .tip.show{opacity:1; transform:translate(-50%,-120%) scale(1)}
 
   /* Map frame */
   .mapwrap{position:relative; overflow:hidden; border-radius:12px; background:#0b1220}
@@ -53,48 +66,64 @@
 
   /* Shape styling */
   .sg-shape{
-    fill:var(--base);
-    stroke:var(--stroke);
-    stroke-width:.75;
-    transition:fill .15s ease, filter .15s ease;
-    cursor:pointer;
+    fill:var(--base); stroke:var(--stroke); stroke-width:.75;
+    transition:fill .15s ease, filter .15s ease; cursor:pointer;
   }
-  .sg-shape:hover{ fill:var(--hover); filter:drop-shadow(0 0 6px rgba(34,197,94,.45)); }
-  .sg-shape:focus-visible{ outline:2px solid #22c55e; outline-offset:2px; }
+  .sg-shape:hover{ fill:var(--hover); filter:drop-shadow(0 0 6px rgba(34,197,94,.45)) }
+  .sg-shape:focus-visible{ outline:2px solid #22c55e; outline-offset:2px }
 
   .hint{margin-top:10px; color:var(--muted); font-size:.9rem}
 
   /* ===== Bar chart styles (namespaced) ===== */
-  .bc-wrap{
-    padding:8px; border-radius:12px; background:#0b1220; border:1px solid #1f2532;
-  }
+  .bc-wrap{ padding:8px; border-radius:12px; background:#0b1220; border:1px solid #1f2532; }
   .bc-controls{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
-  .bc-btn{
-    background:#0b1220; color:var(--text); border:1px solid #263244;
-    padding:8px 10px; border-radius:10px; cursor:pointer; font-size:14px;
-  }
+  .bc-btn{ background:#0b1220; color:var(--text); border:1px solid #263244; padding:8px 10px; border-radius:10px; cursor:pointer; font-size:14px; }
   .bc-btn:hover{ border-color:var(--accent); }
   .bc-grid line { stroke: var(--grid); stroke-width: 1; }
   .bc-axis text { fill: var(--muted); font-size: 12px; }
-  .bc-bar rect {
-    fill: var(--bar); rx: 6; ry: 6;
-    transition: y .35s ease, height .35s ease, fill .15s ease, opacity .2s ease;
-  }
-  .bc-bar:focus rect,
-  .bc-bar:hover rect { fill: var(--bar-hover); }
+  .bc-bar rect { fill: var(--bar); rx: 6; ry: 6; transition: y .35s ease, height .35s ease, fill .15s ease, opacity .2s ease; }
+  .bc-bar:focus rect, .bc-bar:hover rect { fill: var(--bar-hover); }
   .bc-bar.selected rect { fill: var(--accent); }
   .bc-label { fill: var(--muted); font-size: 12px; pointer-events: none; }
-  .bc-tooltip{
-    position: absolute; pointer-events: none; transform: translate(-50%, -115%);
-    background: #0b1220; color: var(--text); border: 1px solid #223047;
-    padding: 6px 8px; font-size: 12px; border-radius: 8px; white-space: nowrap;
-    opacity: 0; transition: opacity .15s ease, transform .15s ease;
-  }
+  .bc-tooltip{ position: absolute; pointer-events: none; transform: translate(-50%, -115%); background: #0b1220; color: var(--text); border: 1px solid #223047; padding: 6px 8px; font-size: 12px; border-radius: 8px; white-space: nowrap; opacity: 0; transition: opacity .15s ease, transform .15s ease; }
   .bc-tooltip.show { opacity: 1; transform: translate(-50%, -125%); }
   .bc-legend { display:flex; gap:8px; align-items:center; color: var(--muted); font-size:12px; margin-top:8px; }
   .bc-swatch { width:10px; height:10px; border-radius:2px; display:inline-block; }
   .bc-swatch.base { background: var(--bar); }
   .bc-swatch.hover { background: var(--bar-hover); }
+
+  /* ===== Venn diagram (vd-*) ===== */
+  .vd-wrap{ position:relative; padding:8px; border-radius:12px; background:#0b1220; border:1px solid #1f2532; }
+  .vd-svg{ width:100%; height:auto; display:block; }
+  .vd-label{ fill:#e5e7eb; font-size:14px; font-weight:700; text-anchor:middle; }
+  .vd-count{ fill:#e5e7eb; font-size:12px; text-anchor:middle; }
+  .vd-circle{ stroke:#e5e7eb; stroke-width:1.25; opacity:.38; transition:opacity .15s ease, filter .15s ease; cursor:pointer; }
+  .vd-circle:hover{ opacity:.55; filter:drop-shadow(0 0 6px rgba(56,189,248,.35)); }
+  .vd-dim{ opacity:.18; }
+  .vd-tip{ position:absolute; pointer-events:none; transform:translate(-50%,-120%); background:#0b1220; color:var(--text); border:1px solid #223047; padding:6px 8px; font-size:12px; border-radius:8px; white-space:nowrap; opacity:0; transition:opacity .12s ease, transform .12s ease; }
+  .vd-tip.show{ opacity:1; transform:translate(-50%,-130%) }
+  .vd-legend{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; color:var(--muted); font-size:12px; }
+  .vd-chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid #223047; padding:6px 10px; border-radius:999px; cursor:pointer; background:#0b1220; }
+  .vd-swatch{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .vd-swatch.a{ background:var(--vd-a); } .vd-swatch.b{ background:var(--vd-b); } .vd-swatch.c{ background:var(--vd-c); }
+  .vd-list{ margin-top:10px; max-height:160px; overflow:auto; border-top:1px solid #1f2532; padding-top:8px; font-size:13px; color:#d1d5db; }
+  .vd-list .empty{ color:var(--muted); }
+
+  /* ===== Frequency Area (fa-*) ===== */
+  .fa-wrap{padding:8px;border-radius:12px;background:#0b1220;border:1px solid #1f2532;position:relative}
+  .fa-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+  .fa-controls label{font-size:12px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+  .fa-svg{width:100%;height:auto;display:block}
+  .fa-grid line{stroke:var(--grid);stroke-width:1}
+  .fa-axis text{fill:var(--muted);font-size:12px}
+  .fa-area{fill-opacity:.55;stroke-width:0}
+  .fa-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:12px}
+  .fa-chip{display:inline-flex;gap:8px;align-items:center;border:1px solid #223047;padding:6px 10px;border-radius:999px;background:#0b1220;cursor:pointer;user-select:none}
+  .fa-chip.off{opacity:.35}
+  .fa-swatch{width:12px;height:12px;border-radius:2px;display:inline-block}
+  .fa-tip{position:absolute;pointer-events:none;transform:translate(-50%,-120%);background:#0b1220;color:var(--text);border:1px solid #223047;padding:6px 8px;font-size:12px;border-radius:8px;white-space:nowrap;opacity:0;transition:opacity .12s ease,transform .12s ease}
+  .fa-tip.show{opacity:1;transform:translate(-50%,-130%)}
+  .fa-xline{stroke:#e5e7eb;stroke-dasharray:6 6;stroke-width:1.5}
 </style>
 </head>
 <body>
@@ -104,11 +133,8 @@
     <div class="mapwrap" id="mapWrap">
       <div id="tooltip" class="tip" role="tooltip" aria-hidden="true">Singapore</div>
 
-      <!-- ===== Inline SVG (your map) ===== -->
-      <svg id="sg-map" xmlns="http://www.w3.org/2000/svg"
-           xmlns:svg="http://www.w3.org/2000/svg"
-           width="800.49158" height="496.70999"
-           aria-labelledby="mapTitle" role="img">
+      <!-- Inline SVG map (paths truncated here for brevity) -->
+      <svg id="sg-map" xmlns="http://www.w3.org/2000/svg" width="800.49158" height="496.70999" aria-labelledby="mapTitle" role="img">
         <title id="mapTitle">Singapore</title>
 
         <!-- Add class="sg-shape" to all paths to make the whole country one interactive target -->
@@ -119,9 +145,7 @@
         <path class="sg-shape" id="SG-05" title="Singapore" d="m 186.24042,484.79 0,0.79 ... z"/>
         <!-- (Use your full paths here) -->
       </svg>
-      <!-- ===== end inline SVG ===== -->
     </div>
-
     <div class="hint">Tip: You can also Tab to focus the shape.</div>
   </div>
 
@@ -139,9 +163,7 @@
       <svg id="bcChart" viewBox="0 0 960 420" role="img" aria-labelledby="bcTitle bcDesc">
         <title id="bcTitle">Sample Data</title>
         <desc id="bcDesc">Bar chart with keyboard and mouse interactivity. Use Tab to focus, Enter to select, and arrow keys to move.</desc>
-        <defs>
-          <clipPath id="bcClip"><rect x="80" y="20" width="840" height="320" rx="8" ry="8"/></clipPath>
-        </defs>
+        <defs><clipPath id="bcClip"><rect x="80" y="20" width="840" height="320" rx="8" ry="8"/></clipPath></defs>
         <g class="bc-grid"></g>
         <g id="bcPlot" clip-path="url(#bcClip)"></g>
         <g class="bc-axis bc-axis-x"></g>
@@ -154,192 +176,704 @@
     </div>
   </div>
 
+  <!-- ===== Card 3: Interactive SVG Venn Diagram ===== -->
+  <div class="card" aria-label="Interactive Venn diagram">
+    <h2>Interactive SVG Venn Diagram</h2>
+    <div class="vd-wrap" id="vdWrap">
+      <div id="vdTip" class="vd-tip" role="status" aria-live="polite"></div>
+      <svg id="vdSvg" class="vd-svg" viewBox="0 0 700 480" role="img" aria-labelledby="vdTitle vdDesc">
+        <title id="vdTitle">Three-set Venn diagram</title>
+        <desc id="vdDesc">Hover to see region name and count. Click to lock and list items.</desc>
+
+        <!-- Circles (A, B, C) -->
+        <g id="vdCircles">
+          <circle id="vdA" class="vd-circle" cx="260" cy="240" r="140" fill="var(--vd-a)"></circle>
+          <circle id="vdB" class="vd-circle" cx="440" cy="240" r="140" fill="var(--vd-b)"></circle>
+          <circle id="vdC" class="vd-circle" cx="350" cy="330" r="140" fill="var(--vd-c)"></circle>
+        </g>
+
+        <!-- Labels on circles -->
+        <text x="220" y="120" class="vd-label">A</text>
+        <text x="480" y="120" class="vd-label">B</text>
+        <text x="350" y="440" class="vd-label">C</text>
+
+        <!-- Dynamic counts per canonical region are drawn by JS -->
+        <g id="vdCounts"></g>
+
+        <!-- Transparent catch layer for pointer detection -->
+        <rect x="0" y="0" width="700" height="480" fill="transparent" id="vdHit" />
+      </svg>
+    </div>
+
+    <div class="vd-legend" id="vdLegend" aria-label="Quick filters">
+      <button class="vd-chip" data-region="A"><span class="vd-swatch a"></span> A only</button>
+      <button class="vd-chip" data-region="B"><span class="vd-swatch b"></span> B only</button>
+      <button class="vd-chip" data-region="C"><span class="vd-swatch c"></span> C only</button>
+      <button class="vd-chip" data-region="A∩B">A ∩ B</button>
+      <button class="vd-chip" data-region="A∩C">A ∩ C</button>
+      <button class="vd-chip" data-region="B∩C">B ∩ C</button>
+      <button class="vd-chip" data-region="A∩B∩C">A ∩ B ∩ C</button>
+      <button class="vd-chip" data-region="ALL">Show all</button>
+    </div>
+
+    <div id="vdList" class="vd-list"><div class="empty">Click a region to list its items.</div></div>
+  </div>
+
+  <!-- ===== Card 4: Windowed Function Graph (like the picture) ===== -->
+  <div class="card" aria-label="Windowed function graph">
+    <h2>SVG Function Graph (Windowed Overlap)</h2>
+    <div class="fg2-controls">
+      <label>μ₀ <input id="fg2Mu0" type="range" min="-1.5" max="2.5" step="0.1" value="0.2"></label>
+      <label>σ₀ <input id="fg2S0"  type="range" min="0.3"  max="1.5" step="0.05" value="0.6"></label>
+      <label>μ₁ <input id="fg2Mu1" type="range" min="-1.5" max="4.5" step="0.1" value="2.0"></label>
+      <label>σ₁ <input id="fg2S1"  type="range" min="0.3"  max="1.5" step="0.05" value="0.7"></label>
+      <label>a   <input id="fg2A"   type="range" min="-2"   max="5"   step="0.05" value="0.9"></label>
+      <label>b   <input id="fg2B"   type="range" min="-2"   max="5"   step="0.05" value="1.7"></label>
+    </div>
+
+    <div class="fg2-wrap">
+      <svg id="fg2Svg" class="fg2-svg" viewBox="0 0 960 420" role="img"
+          aria-label="Two Gaussian densities with window shading">
+        <defs><clipPath id="fg2Clip"><rect x="70" y="20" width="860" height="320" rx="8" ry="8"/></clipPath></defs>
+        <g class="fg2-grid"></g>
+        <g id="fg2Window" clip-path="url(#fg2Clip)"></g>
+        <path id="fg2C0" class="fg2-curve0" d=""></path>
+        <path id="fg2C1" class="fg2-curve1" d=""></path>
+        <line id="fg2CutA" class="fg2-cut" x1="-999" y1="20" x2="-999" y2="340"></line>
+        <line id="fg2CutB" class="fg2-cut" x1="-999" y1="20" x2="-999" y2="340"></line>
+        <g class="fg2-axis fg2-axis-x"></g>
+        <g class="fg2-axis fg2-axis-y"></g>
+      </svg>
+    </div>
+
+    <div class="fg2-legend">
+      <span style="color:#f59e0b"><span class="fg2-line"></span> p(x, y=0)</span>
+      <span style="color:#14b8a6"><span class="fg2-line"></span> p(x, y=1)</span>
+      <span>Shaded: min curve inside [a, b]</span>
+    </div>
+  </div>
+
+  <!-- ===== Card 5: Frequency Area Chart ===== -->
+  <div class="card" aria-label="Interactive frequency area chart">
+    <h2>Interactive SVG Frequency Chart</h2>
+
+    <div class="fa-controls">
+      <label><input id="faStacked" type="checkbox"> Stacked</label>
+      <span style="color:var(--muted);font-size:12px">Hover to inspect • Click legend to toggle series</span>
+    </div>
+
+    <div class="fa-wrap" id="faWrap">
+      <div id="faTip" class="fa-tip" aria-live="polite"></div>
+      <svg id="faSvg" class="fa-svg" viewBox="0 0 960 360" role="img" aria-label="Frequency by year">
+        <defs><clipPath id="faClip"><rect x="70" y="20" width="860" height="260" rx="8" ry="8"/></clipPath></defs>
+        <g class="fa-grid"></g>
+        <g id="faAreas" clip-path="url(#faClip)"></g>
+        <line id="faX" class="fa-xline" x1="-999" y1="20" x2="-999" y2="280"></line>
+        <g class="fa-axis fa-axis-x"></g>
+        <g class="fa-axis fa-axis-y"></g>
+        <rect id="faHit" x="70" y="20" width="860" height="260" fill="transparent"></rect>
+      </svg>
+    </div>
+
+    <div id="faLegend" class="fa-legend" aria-label="Series toggles"></div>
+  </div>
+
 <script>
-  /* ===== Map tooltip (unchanged except text) ===== */
+  /* ===== Map chart (interactive) ===== */
   (function () {
-    const tip = document.getElementById('tooltip');
-    const wrap = document.getElementById('mapWrap');
-    const targets = document.querySelectorAll('#sg-map .sg-shape');
+  const tip = document.getElementById('tooltip');
+  const wrap = document.getElementById('mapWrap');
+  const targets = document.querySelectorAll('#sg-map .sg-shape');
+  function show(e){
+    tip.textContent = 'Singapore';
+    tip.classList.add('show'); tip.setAttribute('aria-hidden','false');
+    const r = wrap.getBoundingClientRect();
+    const x = (e.clientX ?? (r.left + r.width/2)) - r.left;
+    const y = (e.clientY ?? (r.top + r.height/2)) - r.top;
+    tip.style.left = x + 'px'; tip.style.top  = y + 'px';
+  }
+  function hide(){ tip.classList.remove('show'); tip.setAttribute('aria-hidden','true'); }
+  targets.forEach(el=>{
+    el.addEventListener('mouseenter', show);
+    el.addEventListener('mousemove', show);
+    el.addEventListener('mouseleave', hide);
+    el.setAttribute('tabindex','0');
+    el.addEventListener('focus', show);
+    el.addEventListener('blur', hide);
+    el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); show(e); }});
+  });
+})();
 
-    function show(e){
-      tip.textContent = 'Singapore';
-      tip.classList.add('show');
-      tip.setAttribute('aria-hidden','false');
-      const r = wrap.getBoundingClientRect();
-      const x = (e.clientX ?? (r.left + r.width/2)) - r.left;
-      const y = (e.clientY ?? (r.top + r.height/2)) - r.top;
-      tip.style.left = x + 'px';
-      tip.style.top  = y + 'px';
+  /* ===== Bar chart (interactive) ===== */
+  (()=>{ // namespaced
+  const svg = document.getElementById('bcChart');
+  const plot = document.getElementById('bcPlot');
+  const grid = svg.querySelector('.bc-grid');
+  const axisX = svg.querySelector('.bc-axis-x');
+  const axisY = svg.querySelector('.bc-axis-y');
+  const tip = document.getElementById('bcTip');
+  const wrap = document.getElementById('bcWrap');
+
+  const W=960,H=420, M={top:20,right:40,bottom:56,left:80};
+  const innerW=W-M.left-M.right, innerH=H-M.top-M.bottom;
+
+  const baseData = [
+    {label:'Jan',value:12},{label:'Feb',value:19},{label:'Mar',value:7},
+    {label:'Apr',value:14},{label:'May',value:23},{label:'Jun',value:10},
+    {label:'Jul',value:27},{label:'Aug',value:17},{label:'Sep',value:9},
+    {label:'Oct',value:20},{label:'Nov',value:15},{label:'Dec',value:25},
+  ];
+  let data = baseData.map(d=>({...d})), selected=-1;
+
+  const xScale=(i,n)=>{ const pad=0.12, band=innerW/n, barW=band*(1-pad), x=M.left+band*i+(band-barW)/2; return {x,barW}; };
+  const yScale=(v,vmax)=>{ const t=vmax?(v/vmax):0, y=M.top+innerH*(1-t), h=innerH*t; return {y,h}; };
+
+  function drawGridAxes(){
+    grid.innerHTML=''; axisX.innerHTML=''; axisY.innerHTML='';
+    const ticks=5, vmax=Math.max(...data.map(d=>d.value))||1;
+    for(let i=0;i<=ticks;i++){
+      const v=(vmax/ticks)*i, {y}=yScale(v,vmax);
+      grid.appendChild(lineEl(M.left,y,M.left+innerW,y));
+      const t=textEl(M.left-10,y+4,v.toFixed(0)); t.setAttribute('text-anchor','end'); t.classList.add('bc-axis'); axisY.appendChild(t);
     }
-    function hide(){
-      tip.classList.remove('show');
-      tip.setAttribute('aria-hidden','true');
-    }
-    targets.forEach(el=>{
-      el.addEventListener('mouseenter', show);
-      el.addEventListener('mousemove', show);
-      el.addEventListener('mouseleave', hide);
-      el.setAttribute('tabindex','0');
-      el.addEventListener('focus', show);
-      el.addEventListener('blur', hide);
-      el.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); show(e); }
-      });
+    data.forEach((d,i)=>{ const {x,barW}=xScale(i,data.length); const t=textEl(x+barW/2,M.top+innerH+24,d.label); t.setAttribute('text-anchor','middle'); t.classList.add('bc-axis'); axisX.appendChild(t); });
+  }
+  function drawBars(){
+    plot.innerHTML=''; const vmax=Math.max(...data.map(d=>d.value))||1, n=data.length;
+    data.forEach((d,i)=> {
+      const {x,barW}=xScale(i,n); const {y,h}=yScale(d.value,vmax);
+      const g=elNS('g'); g.classList.add('bc-bar'); if(i===selected) g.classList.add('selected');
+      g.setAttribute('tabindex','0'); g.setAttribute('role','button'); g.setAttribute('aria-label',`${d.label}: ${d.value}`);
+      const r=elNS('rect'); r.setAttribute('x',x); r.setAttribute('y',y); r.setAttribute('width',barW); r.setAttribute('height',h);
+      const lab=textEl(x+barW/2,y-6,d.value.toString()); lab.setAttribute('text-anchor','middle'); lab.classList.add('bc-label');
+      g.appendChild(r); g.appendChild(lab); plot.appendChild(g);
+
+      const show=(evt)=>{ const b=wrap.getBoundingClientRect(); const cx=(evt.clientX ?? (b.left+b.width/2))-b.left; const cy=(evt.clientY ?? (b.top+b.height/2))-b.top; tip.textContent=`${d.label}: ${d.value}`; tip.style.left=cx+'px'; tip.style.top=cy+'px'; tip.classList.add('show'); };
+      const hide=()=> tip.classList.remove('show');
+      g.addEventListener('pointerenter',show); g.addEventListener('pointermove',show); g.addEventListener('pointerleave',hide);
+      g.addEventListener('focus',show); g.addEventListener('blur',hide);
+      g.addEventListener('click',()=>{ selected=(selected===i?-1:i); drawBars(); });
+      g.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();g.click();} if(e.key==='ArrowRight'){focus((i+1)%n);} if(e.key==='ArrowLeft'){focus((i-1+n)%n);} });
     });
-  })();
+  }
+  const elNS=(t)=>document.createElementNS('http://www.w3.org/2000/svg',t);
+  const textEl=(x,y,txt)=>{ const t=elNS('text'); t.setAttribute('x',x); t.setAttribute('y',y); t.textContent=txt; return t; };
+  const lineEl=(x1,y1,x2,y2)=>{ const l=elNS('line'); l.setAttribute('x1',x1); l.setAttribute('y1',y1); l.setAttribute('x2',x2); l.setAttribute('y2',y2); return l; };
+  function focus(i){ const bars=plot.querySelectorAll('.bc-bar'); if(bars.length) bars[i].focus(); }
 
-  /* ===== Interactive SVG Bar Chart (namespaced) ===== */
+  document.getElementById('bcSortAsc').addEventListener('click',()=>{ data.sort((a,b)=>a.value-b.value); selected=-1; drawGridAxes(); drawBars(); });
+  document.getElementById('bcSortDesc').addEventListener('click',()=>{ data.sort((a,b)=>b.value-a.value); selected=-1; drawGridAxes(); drawBars(); });
+  document.getElementById('bcShuffle').addEventListener('click',()=>{ for(let i=data.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[data[i],data[j]]=[data[j],data[i]];} selected=-1; drawGridAxes(); drawBars(); });
+  document.getElementById('bcReset').addEventListener('click',()=>{ data=baseData.map(d=>({...d})); selected=-1; drawGridAxes(); drawBars(); });
+
+  drawGridAxes(); drawBars();
+  window.addEventListener('resize',()=> tip.classList.remove('show'));
+})();
+
+  /* ===== Venn diagram (3 sets, interactive) ===== */
   (()=>{
-    const svg = document.getElementById('bcChart');
-    const plot = document.getElementById('bcPlot');
-    const grid = svg.querySelector('.bc-grid');
-    const axisX = svg.querySelector('.bc-axis-x');
-    const axisY = svg.querySelector('.bc-axis-y');
-    const tip = document.getElementById('bcTip');
-    const wrap = document.getElementById('bcWrap');
+  // --- Data model: items with set membership ---
+  const items = [
+    { name:'Alpha',   A:1, B:0, C:0 },
+    { name:'Bravo',   A:1, B:1, C:0 },
+    { name:'Charlie', A:0, B:1, C:0 },
+    { name:'Delta',   A:0, B:1, C:1 },
+    { name:'Echo',    A:1, B:0, C:1 },
+    { name:'Foxtrot', A:1, B:1, C:1 },
+    { name:'Golf',    A:0, B:0, C:1 },
+    { name:'Hotel',   A:1, B:0, C:0 },
+    { name:'India',   A:0, B:1, C:0 },
+    { name:'Juliet',  A:0, B:0, C:1 },
+    { name:'Kilo',    A:1, B:1, C:0 },
+    { name:'Lima',    A:1, B:0, C:1 },
+    { name:'Mike',    A:0, B:1, C:1 },
+    { name:'November',A:1, B:1, C:1 },
+    { name:'Oscar',   A:0, B:0, C:1 },
+    { name:'Papa',    A:1, B:0, C:0 },
+    { name:'Quebec',  A:0, B:1, C:0 },
+    { name:'Romeo',   A:0, B:0, C:1 },
+  ];
 
-    const W = 960, H = 420;
-    const margin = { top: 20, right: 40, bottom: 56, left: 80 };
-    const innerW = W - margin.left - margin.right;
-    const innerH = H - margin.top - margin.bottom;
-
-    const baseData = [
-      { label: 'Jan', value: 12 },
-      { label: 'Feb', value: 19 },
-      { label: 'Mar', value: 7 },
-      { label: 'Apr', value: 14 },
-      { label: 'May', value: 23 },
-      { label: 'Jun', value: 10 },
-      { label: 'Jul', value: 27 },
-      { label: 'Aug', value: 17 },
-      { label: 'Sep', value: 9  },
-      { label: 'Oct', value: 20 },
-      { label: 'Nov', value: 15 },
-      { label: 'Dec', value: 25 },
-    ];
-    let data = baseData.map(d=>({...d}));
-    let selectedIndex = -1;
-
-    function xScale(i,n){
-      const padding = 0.12;
-      const band = innerW / n;
-      const barW = band * (1 - padding);
-      const x = margin.left + band * i + (band - barW)/2;
-      return {x, barW};
+  const vd = {
+    svg:  document.getElementById('vdSvg'),
+    wrap: document.getElementById('vdWrap'),
+    tip:  document.getElementById('vdTip'),
+    counts: document.getElementById('vdCounts'),
+    list: document.getElementById('vdList'),
+    chips: Array.from(document.querySelectorAll('.vd-chip')),
+    circles: {
+      A: document.getElementById('vdA'),
+      B: document.getElementById('vdB'),
+      C: document.getElementById('vdC')
+    },
+    geom: {
+      A:{cx:260,cy:240,r:140},
+      B:{cx:440,cy:240,r:140},
+      C:{cx:350,cy:330,r:140}
     }
-    function yScale(v, vmax){
-      const t = vmax ? (v / vmax) : 0;
-      const y = margin.top + innerH * (1 - t);
-      const h = innerH * t;
-      return {y, h};
+  };
+
+  // Canonical region keys and matchers (exact region membership)
+  const regions = [
+    { key:'A',          matcher: i=> i.A && !i.B && !i.C,                     pos:{x:200,y:250}},
+    { key:'B',          matcher: i=> !i.A && i.B && !i.C,                     pos:{x:500,y:250}},
+    { key:'C',          matcher: i=> !i.A && !i.B && i.C,                     pos:{x:350,y:400}},
+    { key:'A∩B',        matcher: i=> i.A && i.B && !i.C,                      pos:{x:350,y:220}},
+    { key:'A∩C',        matcher: i=> i.A && !i.B && i.C,                      pos:{x:300,y:320}},
+    { key:'B∩C',        matcher: i=> !i.A && i.B && i.C,                      pos:{x:400,y:320}},
+    { key:'A∩B∩C',      matcher: i=> i.A && i.B && i.C,                       pos:{x:350,y:300}},
+  ];
+
+  // Compute counts and draw labels
+  function computeCounts(){
+    return Object.fromEntries(regions.map(r=>[r.key, items.filter(r.matcher)]));
+  }
+
+  function drawCounts(){
+    const counts = computeCounts();
+    vd.counts.innerHTML = '';
+    regions.forEach(r=>{
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x', r.pos.x);
+      t.setAttribute('y', r.pos.y);
+      t.classList.add('vd-count');
+      t.textContent = counts[r.key].length;
+      vd.counts.appendChild(t);
+    });
+  }
+
+  function distance(x1,y1,x2,y2){ const dx=x1-x2, dy=y1-y2; return Math.hypot(dx,dy); }
+  function inside(circle, x, y){ return distance(x,y,circle.cx,circle.cy) <= circle.r; }
+
+  // Determine region under pointer based on circle inclusion
+  function regionAtClientPoint(evt){
+    const rect = vd.svg.getBoundingClientRect();
+    const x = (evt.clientX ?? (rect.left+rect.width/2)) - rect.left;
+    const y = (evt.clientY ?? (rect.top+rect.height/2)) - rect.top;
+    // map to SVG coords (viewBox is 700x480)
+    const svgX = x / rect.width  * 700;
+    const svgY = y / rect.height * 480;
+
+    const A = inside(vd.geom.A, svgX, svgY);
+    const B = inside(vd.geom.B, svgX, svgY);
+    const C = inside(vd.geom.C, svgX, svgY);
+
+    let key = null;
+    if (A && !B && !C) key='A';
+    else if (!A && B && !C) key='B';
+    else if (!A && !B && C) key='C';
+    else if (A && B && !C) key='A∩B';
+    else if (A && !B && C) key='A∩C';
+    else if (!A && B && C) key='B∩C';
+    else if (A && B && C) key='A∩B∩C';
+    else key = null;
+
+    return { key, client:{x, y} };
+  }
+
+  function setDim(active){
+    // Dim unrelated circles for quick visual focus
+    const dim = {A:true,B:true,C:true};
+    if(active){
+      if(active.includes('A')) dim.A=false;
+      if(active.includes('B')) dim.B=false;
+      if(active.includes('C')) dim.C=false;
+    } else { dim.A=false; dim.B=false; dim.C=false; }
+    vd.circles.A.classList.toggle('vd-dim', dim.A);
+    vd.circles.B.classList.toggle('vd-dim', dim.B);
+    vd.circles.C.classList.toggle('vd-dim', dim.C);
+  }
+
+  function showTip(regionKey, client){
+    if(!regionKey){ vd.tip.classList.remove('show'); setDim(null); return; }
+    const counts = computeCounts();
+    vd.tip.textContent = `${regionKey}: ${counts[regionKey].length}`;
+    vd.tip.style.left = client.x + 'px';
+    vd.tip.style.top  = client.y + 'px';
+    vd.tip.classList.add('show');
+    setDim(regionKey);
+  }
+
+  function hideTip(){ vd.tip.classList.remove('show'); setDim(null); }
+
+  function listRegion(regionKey){
+    const box = vd.list;
+    box.innerHTML = '';
+    if(!regionKey || regionKey==='ALL'){
+      const all = document.createElement('div');
+      all.textContent = items.map(i=>i.name).join(', ');
+      box.appendChild(all);
+      return;
     }
+    const arr = computeCounts()[regionKey];
+    if(!arr.length){
+      const em = document.createElement('div'); em.className='empty'; em.textContent='No items in this region.'; box.appendChild(em);
+      return;
+    }
+    const ul = document.createElement('ul');
+    ul.style.margin="0"; ul.style.paddingLeft="18px";
+    arr.forEach(i=>{ const li=document.createElement('li'); li.textContent=i.name; ul.appendChild(li); });
+    box.appendChild(ul);
+  }
 
-    function drawGridAxes(){
-      grid.innerHTML = ''; axisX.innerHTML = ''; axisY.innerHTML = '';
-      const ticks = 5;
-      const vmax = Math.max(...data.map(d=>d.value)) || 1;
+  // Hover / move / leave handling via the transparent hit rect
+  const hit = document.getElementById('vdHit');
+  let locked = null;
 
-      for(let i=0;i<=ticks;i++){
-        const v = (vmax/ticks)*i;
-        const {y} = yScale(v, vmax);
-        const l = lineEl(margin.left, y, margin.left+innerW, y);
-        grid.appendChild(l);
+  function onMove(e){
+    if(locked) return; // do not update when locked
+    const {key, client} = regionAtClientPoint(e);
+    showTip(key, client);
+  }
+  function onLeave(){ if(!locked) hideTip(); }
+  function onClick(e){
+    const {key, client} = regionAtClientPoint(e);
+    if(!key){ locked = null; hideTip(); listRegion(null); return; }
+    // toggle lock
+    if(locked === key){
+      locked = null; hideTip(); listRegion(null);
+    } else {
+      locked = key; showTip(key, client); listRegion(key);
+    }
+  }
 
-        const t = textEl((margin.left-10), y+4, v.toFixed(0));
-        t.setAttribute('text-anchor','end');
-        t.classList.add('bc-axis');
-        axisY.appendChild(t);
+  hit.addEventListener('pointermove', onMove);
+  hit.addEventListener('pointerenter', onMove);
+  hit.addEventListener('pointerleave', onLeave);
+  hit.addEventListener('click', onClick);
+
+  // Legend chip shortcuts (keyboard/click)
+  vd.chips.forEach(ch=>{
+    ch.addEventListener('click', ()=>{
+      const key = ch.dataset.region;
+      if(key==='ALL'){ locked=null; hideTip(); listRegion('ALL'); setDim(null); return; }
+      locked = key; hideTip(); listRegion(key); setDim(key);
+    });
+    ch.setAttribute('tabindex','0');
+    ch.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); ch.click(); } });
+  });
+
+  // Draw counts once and init list
+  drawCounts();
+  listRegion(null);
+})();
+
+  /* ===== function graph (interactive) ===== */
+  (()=> {
+  const svg = document.getElementById('fg2Svg');
+  const grid = svg.querySelector('.fg2-grid');
+  const axX  = svg.querySelector('.fg2-axis-x');
+  const axY  = svg.querySelector('.fg2-axis-y');
+  const p0   = document.getElementById('fg2C0');
+  const p1   = document.getElementById('fg2C1');
+  const winG = document.getElementById('fg2Window');
+  const cutA = document.getElementById('fg2CutA');
+  const cutB = document.getElementById('fg2CutB');
+
+  const mu0 = document.getElementById('fg2Mu0');
+  const s0  = document.getElementById('fg2S0');
+  const mu1 = document.getElementById('fg2Mu1');
+  const s1  = document.getElementById('fg2S1');
+  const aSl = document.getElementById('fg2A');
+  const bSl = document.getElementById('fg2B');
+
+  const W=960,H=420,M={top:20,right:30,bottom:56,left:70};
+  const IW=W-M.left-M.right, IH=H-M.top-M.bottom;
+  const XMIN=-2, XMAX=5;
+  const xs = Array.from({length:520},(_,i)=> XMIN + (i/(519))*(XMAX-XMIN));
+  const x2px = x => M.left + (x-XMIN)/(XMAX-XMIN)*IW;
+
+  function pdf(x,mu,sd){ const z=(x-mu)/sd; return (1/(sd*Math.sqrt(2*Math.PI)))*Math.exp(-0.5*z*z); }
+  function path(points){ return points.map((p,i)=>(i?'L':'M')+p[0].toFixed(2)+','+p[1].toFixed(2)).join(' '); }
+  const ns=t=>document.createElementNS('http://www.w3.org/2000/svg',t);
+  const line=(x1,y1,x2,y2)=>{const l=ns('line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);return l;}
+  const text=(x,y,txt)=>{const t=ns('text');t.setAttribute('x',x);t.setAttribute('y',y);t.textContent=txt;return t;}
+
+  function drawAxes(yMax){
+    grid.innerHTML=''; axX.innerHTML=''; axY.innerHTML='';
+    const y2px = y => M.top + IH*(1 - y/yMax);
+    const yTicks=7;
+    for(let i=0;i<=yTicks;i++){
+      const v=(yMax/yTicks)*i, yy=y2px(v);
+      grid.appendChild(line(M.left,yy,M.left+IW,yy));
+      const t=text(M.left-10,yy+4,v.toFixed(2)); t.setAttribute('text-anchor','end'); t.classList.add('fg2-axis'); axY.appendChild(t);
+    }
+    for(let v=Math.ceil(XMIN); v<=Math.floor(XMAX); v++){
+      const xx=x2px(v); const t=text(xx,M.top+IH+24,v.toString());
+      t.setAttribute('text-anchor','middle'); t.classList.add('fg2-axis'); axX.appendChild(t);
+    }
+  }
+
+  function draw(){
+    // keep a <= b
+    if(parseFloat(aSl.value) > parseFloat(bSl.value)){ const tmp=aSl.value; aSl.value=bSl.value; bSl.value=tmp; }
+
+    const m0=parseFloat(mu0.value), sd0=parseFloat(s0.value);
+    const m1=parseFloat(mu1.value), sd1=parseFloat(s1.value);
+    const a =parseFloat(aSl.value), b =parseFloat(bSl.value);
+
+    const y0 = xs.map(x=>pdf(x,m0,sd0));
+    const y1 = xs.map(x=>pdf(x,m1,sd1));
+    const ymax = Math.max(0.35, ...y0, ...y1)*1.05;
+    const y2px = y => M.top + IH*(1 - y/ymax);
+
+    drawAxes(ymax);
+
+    // curves
+    const pts0 = xs.map((x,i)=>[x2px(x), y2px(y0[i])]);
+    const pts1 = xs.map((x,i)=>[x2px(x), y2px(y1[i])]);
+    p0.setAttribute('d', path(pts0));
+    p1.setAttribute('d', path(pts1));
+
+    // dashed window lines
+    const ax = x2px(a), bx = x2px(b);
+    [ [cutA,ax], [cutB,bx] ].forEach(([el,x])=>{ el.setAttribute('x1',x); el.setAttribute('x2',x); });
+
+    // shaded area: min(y0,y1) inside [a,b]
+    winG.innerHTML='';
+    const top = xs
+      .filter(x=>x>=a && x<=b)
+      .map((x,idx)=>{
+        const i = xs.indexOf(x);
+        return [x2px(x), y2px(Math.min(y0[i], y1[i]))];
+      });
+    if(top.length){
+      const base = [[x2px(b), y2px(0)], [x2px(a), y2px(0)]];
+      const poly = ns('path');
+      const d = path(top) + ' L ' + base.map(p=>p[0].toFixed(2)+','+p[1].toFixed(2)).join(' L ') + ' Z';
+      poly.setAttribute('d', d); poly.setAttribute('class','fg2-window'); winG.appendChild(poly);
+    }
+  }
+
+  [mu0,s0,mu1,s1,aSl,bSl].forEach(el=> el.addEventListener('input', draw));
+  draw();
+})();
+
+  /* ===== frequency graph (interactive) ===== */
+  (()=> {
+  // ----- DOM
+  const svg = document.getElementById('faSvg');
+  const grid = svg.querySelector('.fa-grid');
+  const axX  = svg.querySelector('.fa-axis-x');
+  const axY  = svg.querySelector('.fa-axis-y');
+  const areasG = document.getElementById('faAreas');
+  const hit = document.getElementById('faHit');
+  const xLine = document.getElementById('faX');
+  const tip = document.getElementById('faTip');
+  const wrap = document.getElementById('faWrap');
+  const stackedChk = document.getElementById('faStacked');
+  const legend = document.getElementById('faLegend');
+
+  // ----- Geometry
+  const W=960,H=360,M={top:20,right:30,bottom:50,left:70};
+  const IW=W-M.left-M.right, IH=260; // height of plot area (matches rect)
+  const Y0 = M.top+IH;                // baseline px
+  const YEAR_MIN=1980, YEAR_MAX=2022;
+
+  const x2px = y => M.left + (y - YEAR_MIN)/(YEAR_MAX-YEAR_MIN)*IW;
+
+  // ----- Colors (match screenshot vibe)
+  const palette = {
+    set:'#34d399',      // green
+    seq:'#eab308',      // amber
+    vec:'#818cf8',      // indigo
+    e2e:'#f472b6'       // pink
+  };
+
+  // ----- Sample data (deterministic, sparse earlier, denser later)
+  // Structure: [{year, set, seq, vec, e2e}, ...]
+  const years = Array.from({length: YEAR_MAX-YEAR_MIN+1}, (_,i)=>YEAR_MIN+i);
+  function bumpRand(seed){ // tiny PRNG
+    seed = (seed*1664525 + 1013904223) % 4294967296; return seed/4294967296;
+  }
+  let seed=7;
+  const data = years.map(y=>{
+    // low activity early; rising after 2008; spike around 2018-2020
+    const t = (y-2008)/8;
+    const base = Math.max(0, t) + (y>=2016 && y<=2020 ? 3.5 : 0);
+    const r=()=>{ seed=bumpRand(seed); return seed; };
+    return {
+      year:y,
+      set: (y>2001? Math.max(0, base*0.9 + (r()-0.5)*1.0) : (y>1999? (r()<0.25?1:0): 0)),
+      seq: (y>1993? Math.max(0, base*0.7 + (r()-0.5)*1.0) : (r()<0.1?1:0)),
+      vec: (y>1988? Math.max(0, base*0.8 + (r()-0.5)*1.1) : (r()<0.05?1:0)),
+      e2e: (y>2008? Math.max(0, base*1.2 + (r()-0.5)*1.2) : 0),
+    };
+  }).map(d=>({ ...d,
+    // round to integer frequency
+    set: Math.round(d.set),
+    seq: Math.round(d.seq),
+    vec: Math.round(d.vec),
+    e2e: Math.round(d.e2e),
+  }));
+
+  const series = [
+    { key:'set', label:'Set model',   color:palette.set, enabled:true },
+    { key:'seq', label:'Sequence model', color:palette.seq, enabled:true },
+    { key:'vec', label:'Vector model',   color:palette.vec, enabled:true },
+    { key:'e2e', label:'End-to-end',     color:palette.e2e, enabled:true },
+  ];
+
+  // ----- Helpers
+  const ns=t=>document.createElementNS('http://www.w3.org/2000/svg',t);
+  const line=(x1,y1,x2,y2)=>{const l=ns('line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);return l;};
+  const text=(x,y,txt)=>{const t=ns('text');t.setAttribute('x',x);t.setAttribute('y',y);t.textContent=txt;return t;};
+  const areaPath=(X, Y0px, Ypx)=>{ // X: px array, Ypx: array (top edge)
+    let d = 'M'+X[0]+','+Y0px+' L'+X[0]+','+Ypx[0];
+    for(let i=1;i<X.length;i++) d += ' L'+X[i]+','+Ypx[i];
+    d += ' L'+X[X.length-1]+','+Y0px+' Z';
+    return d;
+  };
+
+  function computeYMax(stacked){
+    if(stacked){
+      let max=0;
+      for(const row of data){
+        const sum = series.filter(s=>s.enabled).reduce((acc,s)=>acc+row[s.key],0);
+        if(sum>max) max=sum;
       }
-      const n = data.length;
-      data.forEach((d,i)=>{
-        const {x, barW} = xScale(i, n);
-        const tx = x + barW/2;
-        const t = textEl(tx, margin.top+innerH+24, d.label);
-        t.setAttribute('text-anchor','middle');
-        t.classList.add('bc-axis');
-        axisX.appendChild(t);
+      return Math.max(10, max+1);
+    }else{
+      let max=0;
+      for(const s of series.filter(s=>s.enabled)){
+        for(const row of data) max=Math.max(max,row[s.key]);
+      }
+      return Math.max(10, max+1);
+    }
+  }
+
+  function drawAxes(yMax){
+    grid.innerHTML=''; axX.innerHTML=''; axY.innerHTML='';
+    // grid
+    const yTicks = 5;
+    for(let i=0;i<=yTicks;i++){
+      const v=(yMax/yTicks)*i;
+      const yy = M.top + IH*(1 - v/yMax);
+      grid.appendChild(line(M.left,yy,M.left+IW,yy));
+      const t=text(M.left-10,yy+4, v.toFixed(0)); t.setAttribute('text-anchor','end'); t.classList.add('fa-axis'); axY.appendChild(t);
+    }
+    // x ticks every 5 years
+    for(let y=1980; y<=2022; y+=5){
+      const xx=x2px(y);
+      const t=text(xx, Y0+24, y.toString()); t.setAttribute('text-anchor','middle'); t.classList.add('fa-axis'); axX.appendChild(t);
+    }
+  }
+
+  function draw(){
+    const stacked = stackedChk.checked;
+    const yMax = computeYMax(stacked);
+    const y2px = v => M.top + IH*(1 - v/yMax);
+
+    drawAxes(yMax);
+    areasG.innerHTML='';
+
+    const enabled = series.filter(s=>s.enabled);
+    if(enabled.length===0) return;
+
+    // X screen coords
+    const X = data.map(d=>x2px(d.year));
+
+    if(stacked){
+      // cumulative baseline for stacking
+      const base = Array(data.length).fill(0);
+      for(const s of enabled){
+        const vals = data.map(d=>d[s.key]);
+        const top = vals.map((v,i)=> base[i] + v);
+        const topPx = top.map(y2px);
+        const basePx = base.map(y2px);
+        const path = ns('path');
+        path.setAttribute('d', areaPath(X, Y0, topPx)); // area to baseline Y0, but draw with translated baseline
+        // To truly stack visually (without reuse baseline path), we convert area between base and top by
+        // filling top and then "cutting" with clip – simpler: draw path from basePx to topPx
+        let d='M'+X[0]+','+basePx[0];
+        for(let i=1;i<X.length;i++) d+=' L'+X[i]+','+basePx[i];
+        for(let i=X.length-1;i>=0;i--) d+=' L'+X[i]+','+topPx[i];
+        d+=' Z';
+        path.setAttribute('d', d);
+        path.setAttribute('class','fa-area');
+        path.setAttribute('fill', s.color);
+        areasG.appendChild(path);
+        // update baseline
+        for(let i=0;i<base.length;i++) base[i]=top[i];
+      }
+    }else{
+      // overlapping areas all to zero line
+      for(const s of enabled){
+        const vals = data.map(d=>d[s.key]);
+        const topPx = vals.map(y2px);
+        const path = ns('path');
+        path.setAttribute('d', areaPath(X, Y0, topPx));
+        path.setAttribute('class','fa-area');
+        path.setAttribute('fill', s.color);
+        areasG.appendChild(path);
+      }
+    }
+  }
+
+  // ----- Legend
+  function renderLegend(){
+    legend.innerHTML='';
+    series.forEach(s=>{
+      const b=document.createElement('button');
+      b.className='fa-chip'+(s.enabled?'':' off');
+      b.setAttribute('type','button');
+      b.setAttribute('aria-pressed', String(s.enabled));
+      b.innerHTML=`<span class="fa-swatch" style="background:${s.color}"></span>${s.label}`;
+      b.addEventListener('click',()=>{
+        s.enabled=!s.enabled;
+        b.classList.toggle('off', !s.enabled);
+        b.setAttribute('aria-pressed', String(s.enabled));
+        draw();
       });
+      b.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); b.click(); }});
+      legend.appendChild(b);
+    });
+  }
+
+  // ----- Hover interaction
+  function nearestYear(px){
+    // convert mouse px to year and snap to nearest data index
+    const frac = (px - M.left)/IW;
+    const year = YEAR_MIN + frac*(YEAR_MAX-YEAR_MIN);
+    let iClosest = 0, dBest = Infinity;
+    for(let i=0;i<data.length;i++){
+      const dx = Math.abs(data[i].year - year);
+      if(dx<dBest){ dBest=dx; iClosest=i; }
     }
+    return iClosest;
+  }
+  function showTip(evt){
+    const r = svg.getBoundingClientRect();
+    const cx = (evt.clientX ?? (r.left+r.width/2)) - r.left;
+    const cy = (evt.clientY ?? (r.top+r.height/2)) - r.top;
+    const i = nearestYear(cx);
+    const rec = data[i];
+    const xpx = x2px(rec.year);
 
-    function drawBars(){
-      plot.innerHTML = '';
-      const vmax = Math.max(...data.map(d=>d.value)) || 1;
-      const n = data.length;
+    xLine.setAttribute('x1',xpx); xLine.setAttribute('x2',xpx);
+    const enabled = series.filter(s=>s.enabled);
+    const lines = enabled.map(s=> `${s.label}: ${rec[s.key]}`).join('\n');
+    tip.textContent = `${rec.year}\n${lines}`;
+    const bw = wrap.getBoundingClientRect();
+    tip.style.left = Math.min(Math.max(12, cx), bw.width-12)+'px';
+    tip.style.top  = Math.max(12, cy-24)+'px';
+    tip.classList.add('show');
+  }
+  function hideTip(){ tip.classList.remove('show'); xLine.setAttribute('x1','-999'); xLine.setAttribute('x2','-999'); }
 
-      data.forEach((d,i)=>{
-        const {x, barW} = xScale(i, n);
-        const {y, h} = yScale(d.value, vmax);
+  hit.addEventListener('pointerenter', showTip);
+  hit.addEventListener('pointermove', showTip);
+  hit.addEventListener('pointerleave', hideTip);
 
-        const g = elNS('g'); g.classList.add('bc-bar');
-        if(i===selectedIndex) g.classList.add('selected');
-        g.setAttribute('tabindex','0');
-        g.setAttribute('role','button');
-        g.setAttribute('aria-label', `${d.label}: ${d.value}`);
+  stackedChk.addEventListener('change', draw);
 
-        const rect = elNS('rect');
-        rect.setAttribute('x',x); rect.setAttribute('y',y);
-        rect.setAttribute('width',barW); rect.setAttribute('height',h);
+  // init
+  renderLegend();
+  draw();
+})();
 
-        const val = textEl(x+barW/2, y-6, d.value.toString());
-        val.setAttribute('text-anchor','middle');
-        val.classList.add('bc-label');
 
-        g.appendChild(rect); g.appendChild(val); plot.appendChild(g);
-
-        const show = (evt)=>{
-          const r = wrap.getBoundingClientRect();
-          const cx = (evt.clientX ?? (r.left + r.width/2)) - r.left;
-          const cy = (evt.clientY ?? (r.top + r.height/2)) - r.top;
-          tip.textContent = `${d.label}: ${d.value}`;
-          tip.style.left = cx+'px'; tip.style.top = cy+'px';
-          tip.classList.add('show');
-        };
-        const hide = ()=> tip.classList.remove('show');
-
-        g.addEventListener('pointerenter', show);
-        g.addEventListener('pointermove', show);
-        g.addEventListener('pointerleave', hide);
-        g.addEventListener('focus', show);
-        g.addEventListener('blur', hide);
-        g.addEventListener('click', ()=>{
-          selectedIndex = (selectedIndex===i? -1 : i);
-          drawBars();
-        });
-        g.addEventListener('keydown', (e)=>{
-          if(e.key==='Enter' || e.key===' '){ e.preventDefault(); g.click(); }
-          if(e.key==='ArrowRight'){ focusBar((i+1)%n); }
-          if(e.key==='ArrowLeft'){  focusBar((i-1+n)%n); }
-        });
-      });
-    }
-
-    function focusBar(i){
-      const bars = plot.querySelectorAll('.bc-bar');
-      if(!bars.length) return; bars[i].focus();
-    }
-    function elNS(tag){ return document.createElementNS('http://www.w3.org/2000/svg', tag); }
-    function textEl(x,y,txt){ const t=elNS('text'); t.setAttribute('x',x); t.setAttribute('y',y); t.textContent=txt; return t; }
-    function lineEl(x1,y1,x2,y2){ const l=elNS('line'); l.setAttribute('x1',x1); l.setAttribute('y1',y1); l.setAttribute('x2',x2); l.setAttribute('y2',y2); return l; }
-
-    // Buttons
-    document.getElementById('bcSortAsc').addEventListener('click', ()=>{
-      data.sort((a,b)=>a.value-b.value); selectedIndex=-1; drawGridAxes(); drawBars();
-    });
-    document.getElementById('bcSortDesc').addEventListener('click', ()=>{
-      data.sort((a,b)=>b.value-a.value); selectedIndex=-1; drawGridAxes(); drawBars();
-    });
-    document.getElementById('bcShuffle').addEventListener('click', ()=>{
-      for(let i=data.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [data[i],data[j]]=[data[j],data[i]]; }
-      selectedIndex=-1; drawGridAxes(); drawBars();
-    });
-    document.getElementById('bcReset').addEventListener('click', ()=>{
-      data = baseData.map(d=>({...d})); selectedIndex=-1; drawGridAxes(); drawBars();
-    });
-
-    // Init
-    drawGridAxes(); drawBars();
-    window.addEventListener('resize', ()=> tip.classList.remove('show'));
-  })();
 </script>
+
 </body>
 </html>
