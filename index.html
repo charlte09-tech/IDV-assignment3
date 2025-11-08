@@ -124,11 +124,40 @@
   .fa-tip{position:absolute;pointer-events:none;transform:translate(-50%,-120%);background:#0b1220;color:var(--text);border:1px solid #223047;padding:6px 8px;font-size:12px;border-radius:8px;white-space:nowrap;opacity:0;transition:opacity .12s ease,transform .12s ease}
   .fa-tip.show{opacity:1;transform:translate(-50%,-130%)}
   .fa-xline{stroke:#e5e7eb;stroke-dasharray:6 6;stroke-width:1.5}
+
+  /* Smooth scroll transition between charts */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Optional fade-in animation for each card as it enters viewport */
+  .card {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Style for jump link */
+  .jump-next {
+    display:block;
+    text-align:center;
+    margin:12px 0 24px;
+    color:var(--accent);
+    font-size:14px;
+    text-decoration:none;
+    transition:opacity .3s ease;
+  }
+  .jump-next:hover { opacity:.7; }
+
 </style>
 </head>
 <body>
   <!-- ===== Card 1: Your Map (unchanged) ===== -->
-  <div class="card" aria-label="Interactive map of Singapore">
+  <div class="card" id="card-map" tabindex="-1" aria-label="Interactive map of Singapore">
     <h1>Interactive map</h1>
     <div class="mapwrap" id="mapWrap">
       <div id="tooltip" class="tip" role="tooltip" aria-hidden="true">Singapore</div>
@@ -148,9 +177,9 @@
     </div>
     <div class="hint">Notes: central singapore map to be highlighted when hover</div>
   </div>
-
+  
   <!-- ===== Card 2: Interactive SVG Bar Chart ===== -->
-  <div class="card" aria-label="Interactive bar chart">
+  <div class="card" id="card-bar" tabindex="-1" aria-label="Interactive bar chart">
     <h2>Interactive Bar Chart (Jan to Dec)</h2>
     <div class="bc-controls">
       <button class="bc-btn" id="bcSortAsc" aria-label="Sort ascending">Sort ↑</button>
@@ -177,9 +206,9 @@
       <div class="hint">Notes: to sort data in ascending or descending order, shuffle the months then reset from Jan to Dec</div>
     </div>
   </div>
-
+ 
   <!-- ===== Card 3: Interactive SVG Venn Diagram ===== -->
-  <div class="card" aria-label="Interactive Venn diagram">
+  <div class="card" id="card-venn" tabindex="-1" aria-label="Interactive Venn diagram">
     <h2>Interactive Venn Diagram</h2>
     <div class="vd-wrap" id="vdWrap">
       <div id="vdTip" class="vd-tip" role="status" aria-live="polite"></div>
@@ -223,7 +252,7 @@
   </div>
 
   <!-- ===== Card 4: Windowed Function Graph (like the picture) ===== -->
-  <div class="card" aria-label="Windowed function graph">
+  <div class="card" id="card-fg1" tabindex="-1" aria-label="Windowed function graph">
     <h2>SVG Function Graph (Windowed Overlap)</h2>
     <div class="fg2-controls">
       <label>Yellow hori<input id="fg2Mu0" type="range" min="-1.5" max="2.5" step="0.1" value="0.2"></label>
@@ -258,7 +287,7 @@
   </div>
 
   <!-- ===== Card 5: Frequency Area Chart ===== -->
-  <div class="card" aria-label="Interactive frequency area chart">
+  <div class="card" id="card-freq" tabindex="-1" aria-labe l="Interactive frequency area chart">
     <h2>Interactive SVG Frequency Chart</h2>
 
     <div class="fa-controls">
@@ -871,8 +900,16 @@
   renderLegend();
   draw();
 })();
+</script>
 
-
+<!-- add animation when moving from one chart to another -->
+<script>
+  document.addEventListener('scroll',()=>{
+    document.querySelectorAll('.card').forEach(c=>{
+      const rect=c.getBoundingClientRect();
+      if(rect.top < window.innerHeight * 0.8) c.classList.add('visible');
+    });
+  });
 </script>
 
 </body>
